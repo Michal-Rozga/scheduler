@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Scheduler, DayView, WeekView, MonthView, Appointments, AppointmentForm, AppointmentTooltip, Toolbar, DateNavigator, ViewSwitcher } from '@devexpress/dx-react-scheduler-material-ui';
-import { ViewState, EditingState } from '@devexpress/dx-react-scheduler';
+import { Scheduler, DayView, WeekView, MonthView, Appointments, AppointmentForm, AppointmentTooltip, Toolbar, DateNavigator, ViewSwitcher, AllDayPanel } from '@devexpress/dx-react-scheduler-material-ui';
+import { ViewState, EditingState, IntegratedEditing } from '@devexpress/dx-react-scheduler';
 import { db } from './firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import 'devextreme/dist/css/dx.common.css';
@@ -26,6 +26,8 @@ const SchedulerComponent = () => {
           endDate: new Date(eventData.endDate).toISOString(),
           title: eventData.title,
           notes: eventData.notes,
+          allDay: eventData.allDay || false,
+          rRule: eventData.rRule || null,
         };
       });
       setData(events);
@@ -41,9 +43,11 @@ const SchedulerComponent = () => {
         endDate: new Date(added.endDate).toISOString(),
         title: added.title,
         notes: added.notes,
+        allDay: added.allDay || false,
+        rRule: added.rRule || null,
       };
       const docRef = await addDoc(collection(db, 'events'), newEvent);
-      setData([...data, { id: docRef.id, ...newEvent }]);
+      setData(prevData => [...prevData, { id: docRef.id, ...newEvent }]);
     }
     if (changed) {
       const updatedData = data.map(event => {
@@ -64,6 +68,8 @@ const SchedulerComponent = () => {
           endDate: new Date(changed[id].endDate).toISOString(),
           title: changed[id].title,
           notes: changed[id].notes,
+          allDay: changed[id].allDay || false,
+          rRule: changed[id].rRule || null,
         });
       });
     }
@@ -87,9 +93,11 @@ const SchedulerComponent = () => {
         editingAppointment={editingAppointment}
         onEditingAppointmentChange={setEditingAppointment}
       />
+      <IntegratedEditing />
       <DayView startDayHour={9} endDayHour={19} />
       <WeekView startDayHour={9} endDayHour={19} />
       <MonthView />
+      <AllDayPanel />
       <Toolbar />
       <DateNavigator />
       <ViewSwitcher />
