@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Scheduler, DayView, WeekView, MonthView, Appointments, AppointmentForm, AppointmentTooltip } from '@devexpress/dx-react-scheduler-material-ui';
+import { Scheduler, DayView, WeekView, MonthView, Appointments, AppointmentForm, AppointmentTooltip, Toolbar, DateNavigator, ViewSwitcher } from '@devexpress/dx-react-scheduler-material-ui';
 import { ViewState, EditingState } from '@devexpress/dx-react-scheduler';
 import { db } from './firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
@@ -12,6 +12,8 @@ locale(navigator.language);
 const SchedulerComponent = () => {
   const [data, setData] = useState([]);
   const [currentViewName, setCurrentViewName] = useState('Week');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [editingAppointment, setEditingAppointment] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -23,6 +25,7 @@ const SchedulerComponent = () => {
           startDate: new Date(eventData.startDate).toISOString(),
           endDate: new Date(eventData.endDate).toISOString(),
           title: eventData.title,
+          notes: eventData.notes,
         };
       });
       setData(events);
@@ -37,6 +40,7 @@ const SchedulerComponent = () => {
         startDate: new Date(added.startDate).toISOString(),
         endDate: new Date(added.endDate).toISOString(),
         title: added.title,
+        notes: added.notes,
       };
       const docRef = await addDoc(collection(db, 'events'), newEvent);
       setData([...data, { id: docRef.id, ...newEvent }]);
@@ -59,6 +63,7 @@ const SchedulerComponent = () => {
           startDate: new Date(changed[id].startDate).toISOString(),
           endDate: new Date(changed[id].endDate).toISOString(),
           title: changed[id].title,
+          notes: changed[id].notes,
         });
       });
     }
@@ -70,12 +75,24 @@ const SchedulerComponent = () => {
   };
 
   return (
-    <Scheduler data={data}>
-      <ViewState currentViewName={currentViewName} onCurrentViewNameChange={setCurrentViewName} />
-      <EditingState onCommitChanges={commitChanges} />
-      <DayView />
-      <WeekView />
+    <Scheduler data={data} locale="pl-PL">
+      <ViewState
+        currentDate={currentDate}
+        onCurrentDateChange={setCurrentDate}
+        currentViewName={currentViewName}
+        onCurrentViewNameChange={setCurrentViewName}
+      />
+      <EditingState
+        onCommitChanges={commitChanges}
+        editingAppointment={editingAppointment}
+        onEditingAppointmentChange={setEditingAppointment}
+      />
+      <DayView startDayHour={9} endDayHour={19} />
+      <WeekView startDayHour={9} endDayHour={19} />
       <MonthView />
+      <Toolbar />
+      <DateNavigator />
+      <ViewSwitcher />
       <Appointments />
       <AppointmentTooltip showOpenButton showDeleteButton />
       <AppointmentForm />
