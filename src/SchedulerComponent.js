@@ -138,9 +138,7 @@ const SchedulerComponent = () => {
   };
  
   return (
-    <Scheduler data={data} locale="pl-PL" 
-    // recurrenceEditMode="series">
-    >
+    <Scheduler data={data} locale="pl-PL">
       <ViewState
         currentDate={currentDate}
         onCurrentDateChange={setCurrentDate}
