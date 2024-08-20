@@ -5,12 +5,13 @@ import {
   Toolbar, DateNavigator, ViewSwitcher, 
   AllDayPanel, EditRecurrenceMenu,
 } from '@devexpress/dx-react-scheduler-material-ui';
-import { ViewState, EditingState, IntegratedEditing,} from '@devexpress/dx-react-scheduler';
+import { ViewState, EditingState, IntegratedEditing } from '@devexpress/dx-react-scheduler';
 import { db } from './firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
 import 'devextreme/dist/css/dx.common.css';
 import 'devextreme/dist/css/dx.light.css';
 import { locale } from 'devextreme/localization';
+import { RRule, RRuleSet } from 'rrule';
 
 locale(navigator.language);
 
@@ -41,6 +42,11 @@ const SchedulerComponent = () => {
     fetchData();
   }, []);
 
+  const validateDate = (dateString) => {
+    const date = new Date(dateString);
+    return !isNaN(date) && dateString !== '';
+  };
+
   const commitChanges = async ({ added, changed, deleted }) => {
     try {
       if (added) {
@@ -55,69 +61,58 @@ const SchedulerComponent = () => {
         const docRef = await addDoc(collection(db, 'events'), newEvent);
         setData(prevData => [...prevData, { id: docRef.id, ...newEvent }]);
       }
-  
+
       if (changed) {
-        const updatedData = data.map(event => {
-          if (changed[event.id]) {
-            const startDate = new Date(changed[event.id].startDate);
-            const endDate = new Date(changed[event.id].endDate);
-  
-            if (isNaN(startDate) || isNaN(endDate)) {
-              console.error('Invalid date in changed event:', changed[event.id]);
+        for (const id of Object.keys(changed)) {
+          const updatedFields = changed[id];
+          const event = data.find(event => event.id === id);
+
+          if (event) {
+            const startDate = updatedFields.startDate ? new Date(updatedFields.startDate) : new Date(event.startDate);
+            const endDate = updatedFields.endDate ? new Date(updatedFields.endDate) : new Date(event.endDate);
+
+            if (!validateDate(startDate) || !validateDate(endDate)) {
+              console.error('Invalid date in changed event:', updatedFields);
               throw new RangeError('Invalid date in changed event');
             }
-  
-            let updatedEvent = {
+
+            const updatedEvent = {
               ...event,
-              ...changed[event.id],
+              ...updatedFields,
               startDate: startDate.toISOString(),
               endDate: endDate.toISOString(),
+              rRule: updatedFields.rRule || event.rRule,
             };
-  
-            if (!changed[event.id].rRule) {
-              updatedEvent = {
-                ...updatedEvent,
-                rRule: null,
-              };
-            }
-  
-            return updatedEvent;
+
+            setData(prevData =>
+              prevData.map(e => (e.id === id ? updatedEvent : e))
+            );
+
+            await updateDoc(doc(db, 'events', id), updatedEvent);
           }
-          return event;
-        });
-  
-        setData(updatedData);
-  
-        for (const id of Object.keys(changed)) {
-          const startDate = new Date(changed[id].startDate);
-          const endDate = new Date(changed[id].endDate);
-  
-          if (isNaN(startDate) || isNaN(endDate)) {
-            console.error('Invalid date in changed event:', changed[id]);
-            throw new RangeError('Invalid date in changed event');
-          }
-  
-          const updatedEvent = {
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-            title: changed[id].title,
-            notes: changed[id].notes,
-            allDay: changed[id].allDay || false,
-          };
-  
-          if (!changed[id].rRule) {
-            updatedEvent.rRule = null;
-          }
-  
-          await updateDoc(doc(db, 'events', id), updatedEvent);
         }
       }
-  
+
       if (deleted !== undefined) {
         const eventToDelete = data.find(event => event.id === deleted);
         if (eventToDelete) {
           if (eventToDelete.rRule) {
-            setData(prevData => prevData.filter(event => event.id !== deleted));
+            const rrule = RRule.fromString(eventToDelete.rRule);
+            const rruleSet = new RRuleSet();
+            rruleSet.rrule(rrule);
+
+            const occurrences = rrule.all();
+            const eventStartDate = new Date(eventToDelete.startDate);
+
+            const updatedData = data.filter(event => {
+              const eventDate = new Date(event.startDate);
+              return !occurrences.some(occurrence =>
+                eventDate.getTime() === occurrence.getTime()
+              );
+            });
+
+            setData(updatedData);
+
             await deleteDoc(doc(db, 'events', deleted));
           } else {
             setData(prevData => prevData.filter(event => event.id !== deleted));
@@ -129,7 +124,6 @@ const SchedulerComponent = () => {
       console.error('Error in commitChanges:', error);
     }
   };
-  
 
   return (
     <Scheduler data={data} locale="pl-PL" recurrenceEditMode="occurrence">
