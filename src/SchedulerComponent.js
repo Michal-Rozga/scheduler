@@ -61,21 +61,21 @@ const SchedulerComponent = () => {
         const docRef = await addDoc(collection(db, 'events'), newEvent);
         setData(prevData => [...prevData, { id: docRef.id, ...newEvent }]);
       }
-
+  
       if (changed) {
         for (const id of Object.keys(changed)) {
           const updatedFields = changed[id];
           const event = data.find(event => event.id === id);
-
+  
           if (event) {
             const startDate = updatedFields.startDate ? new Date(updatedFields.startDate) : new Date(event.startDate);
             const endDate = updatedFields.endDate ? new Date(updatedFields.endDate) : new Date(event.endDate);
-
-            if (!validateDate(startDate) || !validateDate(endDate)) {
+  
+            if (isNaN(startDate) || isNaN(endDate)) {
               console.error('Invalid date in changed event:', updatedFields);
               throw new RangeError('Invalid date in changed event');
             }
-
+  
             const updatedEvent = {
               ...event,
               ...updatedFields,
@@ -83,16 +83,16 @@ const SchedulerComponent = () => {
               endDate: endDate.toISOString(),
               rRule: updatedFields.rRule || event.rRule,
             };
-
+  
             setData(prevData =>
               prevData.map(e => (e.id === id ? updatedEvent : e))
             );
-
+  
             await updateDoc(doc(db, 'events', id), updatedEvent);
           }
         }
       }
-
+  
       if (deleted !== undefined) {
         const eventToDelete = data.find(event => event.id === deleted);
         if (eventToDelete) {
@@ -100,20 +100,32 @@ const SchedulerComponent = () => {
             const rrule = RRule.fromString(eventToDelete.rRule);
             const rruleSet = new RRuleSet();
             rruleSet.rrule(rrule);
-
+  
             const occurrences = rrule.all();
             const eventStartDate = new Date(eventToDelete.startDate);
-
+  
             const updatedData = data.filter(event => {
               const eventDate = new Date(event.startDate);
               return !occurrences.some(occurrence =>
                 eventDate.getTime() === occurrence.getTime()
               );
             });
-
+  
             setData(updatedData);
-
+  
             await deleteDoc(doc(db, 'events', deleted));
+  
+            const querySnapshot = await getDocs(collection(db, 'events'));
+            const events = querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              startDate: new Date(doc.data().startDate).toISOString(),
+              endDate: new Date(doc.data().endDate).toISOString(),
+              title: doc.data().title,
+              notes: doc.data().notes,
+              allDay: doc.data().allDay || false,
+              rRule: doc.data().rRule || null,
+            }));
+            setData(events);
           } else {
             setData(prevData => prevData.filter(event => event.id !== deleted));
             await deleteDoc(doc(db, 'events', deleted));
@@ -124,9 +136,11 @@ const SchedulerComponent = () => {
       console.error('Error in commitChanges:', error);
     }
   };
-
+ 
   return (
-    <Scheduler data={data} locale="pl-PL" recurrenceEditMode="occurrence">
+    <Scheduler data={data} locale="pl-PL" 
+    // recurrenceEditMode="series">
+    >
       <ViewState
         currentDate={currentDate}
         onCurrentDateChange={setCurrentDate}
