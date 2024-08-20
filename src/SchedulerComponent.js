@@ -12,6 +12,7 @@ import 'devextreme/dist/css/dx.common.css';
 import 'devextreme/dist/css/dx.light.css';
 import { locale } from 'devextreme/localization';
 import { RRule, RRuleSet } from 'rrule';
+import { messages } from './translation';
 
 locale(navigator.language);
 
@@ -54,7 +55,7 @@ const SchedulerComponent = () => {
           startDate: new Date(added.startDate).toISOString(),
           endDate: new Date(added.endDate).toISOString(),
           title: added.title,
-          notes: added.notes,
+          notes: added.notes || null,
           allDay: added.allDay || false,
           rRule: added.rRule || null,
         };
@@ -140,18 +141,20 @@ const SchedulerComponent = () => {
   return (
     <Scheduler data={data} locale="pl-PL">
       <ViewState
+        messages={messages}
         currentDate={currentDate}
         onCurrentDateChange={setCurrentDate}
         currentViewName={currentViewName}
         onCurrentViewNameChange={setCurrentViewName}
       />
       <EditingState
+        messages={messages}
         onCommitChanges={commitChanges}
         editingAppointment={editingAppointment}
         onEditingAppointmentChange={setEditingAppointment}
         allowDeleting={true}
       />
-      <IntegratedEditing />
+      <IntegratedEditing messages={messages}/>
       <DayView startDayHour={9} endDayHour={19} />
       <WeekView startDayHour={9} endDayHour={19} />
       <MonthView />
@@ -160,9 +163,9 @@ const SchedulerComponent = () => {
       <DateNavigator />
       <ViewSwitcher />
       <Appointments />
-      <EditRecurrenceMenu />
+      <EditRecurrenceMenu messages={messages}/>
       <AppointmentTooltip showOpenButton showDeleteButton />
-      <AppointmentForm />
+      <AppointmentForm messages={messages}/>
     </Scheduler>
   );
 };
