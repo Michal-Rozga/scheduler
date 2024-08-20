@@ -155,8 +155,8 @@ const SchedulerComponent = () => {
         allowDeleting={true}
       />
       <IntegratedEditing messages={messages}/>
-      <DayView startDayHour={9} endDayHour={19} />
-      <WeekView startDayHour={9} endDayHour={19} />
+      <DayView startDayHour={7} endDayHour={20} />
+      <WeekView startDayHour={7} endDayHour={20} />
       <MonthView />
       <AllDayPanel />
       <Toolbar />
